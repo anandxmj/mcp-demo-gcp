@@ -1,0 +1,50 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: flight-ticket-tools
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/service-account: "[google-cloud-iam-service-account-for-flight-ticket-tools]"
+        run.googleapis.com/cpu-throttling: "false"
+        autoscaling.knative.dev/maxScale: "10"
+        autoscaling.knative.dev/minScale: "0"
+    spec:
+      containerConcurrency: 100
+      timeoutSeconds: 300
+      containers:
+      - image: "[Docker Image URL for flight-ticket-tools MCP Server]"
+        ports:
+        - name: http1
+          containerPort: 8080
+        env:
+        - name: ENVIRONMENT
+          value: cloudrun
+        - name: PORT
+          value: "8080"
+        resources:
+          limits:
+            cpu: "1"
+            memory: 512Mi
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          timeoutSeconds: 1
+          periodSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          timeoutSeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3

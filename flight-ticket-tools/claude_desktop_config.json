@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "flight-ticket-tools": {
+      "command": "python3",
+      "args": [
+        "/Users/anand/work/flight-ticket-tools/mcp_http_client.py"
+      ]
+    }
+  }
+}
