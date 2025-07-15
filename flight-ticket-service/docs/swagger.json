@@ -1,0 +1,480 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "A Go-based REST API service for managing flight tickets using Google Cloud Firestore",
+        "title": "Flight Ticket Service API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/health": {
+            "get": {
+                "description": "Check the health status of the Flight Ticket Service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health check endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Service is healthy",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ticket": {
+            "post": {
+                "description": "Create a new flight ticket with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Create a new flight ticket",
+                "parameters": [
+                    {
+                        "description": "Ticket creation request",
+                        "name": "ticket",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateTicketRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully created ticket",
+                        "schema": {
+                            "$ref": "#/definitions/models.FlightTicket"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ticket/{confirmationID}": {
+            "get": {
+                "description": "Retrieve a flight ticket using its confirmation ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get a flight ticket by confirmation ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"ABC123\"",
+                        "description": "Ticket confirmation ID",
+                        "name": "confirmationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved ticket",
+                        "schema": {
+                            "$ref": "#/definitions/models.FlightTicket"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Ticket not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update an existing flight ticket with new information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Update a flight ticket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"ABC123\"",
+                        "description": "Ticket confirmation ID",
+                        "name": "confirmationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ticket update request",
+                        "name": "ticket",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateTicketRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated ticket",
+                        "schema": {
+                            "$ref": "#/definitions/models.FlightTicket"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Cancel (soft delete) a flight ticket by setting its status to CANCELLED",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Cancel a flight ticket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"ABC123\"",
+                        "description": "Ticket confirmation ID",
+                        "name": "confirmationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully cancelled ticket",
+                        "schema": {
+                            "$ref": "#/definitions/models.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets": {
+            "get": {
+                "description": "Retrieve a list of all flight tickets with optional pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "List all flight tickets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "example": 10,
+                        "description": "Maximum number of tickets to return",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved tickets",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "example": "flight-ticket-service"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "healthy"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-07-13T05:00:00Z"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1.0.0"
+                }
+            }
+        },
+        "models.CreateTicketRequest": {
+            "description": "Request payload for creating a new flight ticket",
+            "type": "object",
+            "required": [
+                "departure_date",
+                "departure_time",
+                "destination",
+                "origin",
+                "passengers"
+            ],
+            "properties": {
+                "departure_date": {
+                    "type": "string",
+                    "example": "2024-12-25"
+                },
+                "departure_time": {
+                    "type": "string",
+                    "example": "14:30"
+                },
+                "destination": {
+                    "type": "string",
+                    "example": "LAX"
+                },
+                "flight_number": {
+                    "type": "string",
+                    "example": "AA1234"
+                },
+                "origin": {
+                    "type": "string",
+                    "example": "JFK"
+                },
+                "passengers": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 2
+                }
+            }
+        },
+        "models.ErrorResponse": {
+            "description": "Error response",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Invalid request"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Detailed error description"
+                }
+            }
+        },
+        "models.FlightTicket": {
+            "description": "Flight ticket information",
+            "type": "object",
+            "properties": {
+                "confirmation_id": {
+                    "type": "string",
+                    "example": "ABC123"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-07-12T19:00:00Z"
+                },
+                "departure_date": {
+                    "type": "string",
+                    "example": "2024-12-25T00:00:00Z"
+                },
+                "departure_time": {
+                    "type": "string",
+                    "example": "2024-01-01T14:30:00Z"
+                },
+                "destination": {
+                    "type": "string",
+                    "example": "LAX"
+                },
+                "flight_number": {
+                    "type": "string",
+                    "example": "AA1234"
+                },
+                "origin": {
+                    "type": "string",
+                    "example": "JFK"
+                },
+                "passengers": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "CONFIRMED",
+                        "CANCELLED",
+                        "PENDING"
+                    ],
+                    "example": "CONFIRMED"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-07-12T19:00:00Z"
+                }
+            }
+        },
+        "models.SuccessResponse": {
+            "description": "Success response",
+            "type": "object",
+            "properties": {
+                "confirmation_id": {
+                    "type": "string",
+                    "example": "ABC123"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Ticket cancelled successfully"
+                }
+            }
+        },
+        "models.TicketListResponse": {
+            "description": "Response containing list of tickets",
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "tickets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FlightTicket"
+                    }
+                }
+            }
+        },
+        "models.UpdateTicketRequest": {
+            "description": "Request payload for updating an existing flight ticket",
+            "type": "object",
+            "properties": {
+                "departure_date": {
+                    "type": "string",
+                    "example": "2024-12-25"
+                },
+                "departure_time": {
+                    "type": "string",
+                    "example": "14:30"
+                },
+                "destination": {
+                    "type": "string",
+                    "example": "LAX"
+                },
+                "flight_number": {
+                    "type": "string",
+                    "example": "AA1234"
+                },
+                "origin": {
+                    "type": "string",
+                    "example": "JFK"
+                },
+                "passengers": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 2
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "CONFIRMED",
+                        "CANCELLED",
+                        "PENDING"
+                    ],
+                    "example": "CONFIRMED"
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "description": "Flight ticket management operations",
+            "name": "tickets"
+        },
+        {
+            "description": "Health check operations",
+            "name": "health"
+        }
+    ]
+}

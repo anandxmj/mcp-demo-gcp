@@ -1,0 +1,334 @@
+basePath: /
+definitions:
+  handlers.HealthResponse:
+    properties:
+      service:
+        example: flight-ticket-service
+        type: string
+      status:
+        example: healthy
+        type: string
+      timestamp:
+        example: "2024-07-13T05:00:00Z"
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
+  models.CreateTicketRequest:
+    description: Request payload for creating a new flight ticket
+    properties:
+      departure_date:
+        example: "2024-12-25"
+        type: string
+      departure_time:
+        example: "14:30"
+        type: string
+      destination:
+        example: LAX
+        type: string
+      flight_number:
+        example: AA1234
+        type: string
+      origin:
+        example: JFK
+        type: string
+      passengers:
+        example: 2
+        minimum: 1
+        type: integer
+    required:
+    - departure_date
+    - departure_time
+    - destination
+    - origin
+    - passengers
+    type: object
+  models.ErrorResponse:
+    description: Error response
+    properties:
+      error:
+        example: Invalid request
+        type: string
+      message:
+        example: Detailed error description
+        type: string
+    type: object
+  models.FlightTicket:
+    description: Flight ticket information
+    properties:
+      confirmation_id:
+        example: ABC123
+        type: string
+      created_at:
+        example: "2024-07-12T19:00:00Z"
+        type: string
+      departure_date:
+        example: "2024-12-25T00:00:00Z"
+        type: string
+      departure_time:
+        example: "2024-01-01T14:30:00Z"
+        type: string
+      destination:
+        example: LAX
+        type: string
+      flight_number:
+        example: AA1234
+        type: string
+      origin:
+        example: JFK
+        type: string
+      passengers:
+        example: 2
+        type: integer
+      status:
+        enum:
+        - CONFIRMED
+        - CANCELLED
+        - PENDING
+        example: CONFIRMED
+        type: string
+      updated_at:
+        example: "2024-07-12T19:00:00Z"
+        type: string
+    type: object
+  models.SuccessResponse:
+    description: Success response
+    properties:
+      confirmation_id:
+        example: ABC123
+        type: string
+      message:
+        example: Ticket cancelled successfully
+        type: string
+    type: object
+  models.TicketListResponse:
+    description: Response containing list of tickets
+    properties:
+      count:
+        example: 10
+        type: integer
+      tickets:
+        items:
+          $ref: '#/definitions/models.FlightTicket'
+        type: array
+    type: object
+  models.UpdateTicketRequest:
+    description: Request payload for updating an existing flight ticket
+    properties:
+      departure_date:
+        example: "2024-12-25"
+        type: string
+      departure_time:
+        example: "14:30"
+        type: string
+      destination:
+        example: LAX
+        type: string
+      flight_number:
+        example: AA1234
+        type: string
+      origin:
+        example: JFK
+        type: string
+      passengers:
+        example: 2
+        minimum: 1
+        type: integer
+      status:
+        enum:
+        - CONFIRMED
+        - CANCELLED
+        - PENDING
+        example: CONFIRMED
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: A Go-based REST API service for managing flight tickets using Google
+    Cloud Firestore
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Flight Ticket Service API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check the health status of the Flight Ticket Service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            $ref: '#/definitions/handlers.HealthResponse'
+      summary: Health check endpoint
+      tags:
+      - health
+  /ticket:
+    post:
+      consumes:
+      - application/json
+      description: Create a new flight ticket with the provided details
+      parameters:
+      - description: Ticket creation request
+        in: body
+        name: ticket
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully created ticket
+          schema:
+            $ref: '#/definitions/models.FlightTicket'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Create a new flight ticket
+      tags:
+      - tickets
+  /ticket/{confirmationID}:
+    delete:
+      consumes:
+      - application/json
+      description: Cancel (soft delete) a flight ticket by setting its status to CANCELLED
+      parameters:
+      - description: Ticket confirmation ID
+        example: '"ABC123"'
+        in: path
+        name: confirmationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully cancelled ticket
+          schema:
+            $ref: '#/definitions/models.SuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Cancel a flight ticket
+      tags:
+      - tickets
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a flight ticket using its confirmation ID
+      parameters:
+      - description: Ticket confirmation ID
+        example: '"ABC123"'
+        in: path
+        name: confirmationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved ticket
+          schema:
+            $ref: '#/definitions/models.FlightTicket'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Ticket not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get a flight ticket by confirmation ID
+      tags:
+      - tickets
+    put:
+      consumes:
+      - application/json
+      description: Update an existing flight ticket with new information
+      parameters:
+      - description: Ticket confirmation ID
+        example: '"ABC123"'
+        in: path
+        name: confirmationID
+        required: true
+        type: string
+      - description: Ticket update request
+        in: body
+        name: ticket
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated ticket
+          schema:
+            $ref: '#/definitions/models.FlightTicket'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Update a flight ticket
+      tags:
+      - tickets
+  /tickets:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all flight tickets with optional pagination
+      parameters:
+      - default: 50
+        description: Maximum number of tickets to return
+        example: 10
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved tickets
+          schema:
+            $ref: '#/definitions/models.TicketListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: List all flight tickets
+      tags:
+      - tickets
+schemes:
+- http
+- https
+swagger: "2.0"
+tags:
+- description: Flight ticket management operations
+  name: tickets
+- description: Health check operations
+  name: health

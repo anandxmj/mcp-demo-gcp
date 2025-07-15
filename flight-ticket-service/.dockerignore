@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+README.md
+
+# Documentation
+*.md
+# docs/ - Commented out because it's needed for Swagger documentation
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build artifacts
+server
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+test/
+coverage.out
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker files (except Dockerfile)
+docker-compose*.yml
+docker-compose*.yaml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Vendor (if using)
+vendor/

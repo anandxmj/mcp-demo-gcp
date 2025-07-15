@@ -1,0 +1,16 @@
+{
+  "tickets": {
+    "ABC123": {
+      "confirmation_id": "ABC123",
+      "origin": "JFK",
+      "destination": "LAX",
+      "departure_date": "2024-12-25T00:00:00Z",
+      "departure_time": "2024-01-01T14:30:00Z",
+      "flight_number": "AA1234",
+      "passengers": 2,
+      "status": "CONFIRMED",
+      "created_at": "2024-07-13T13:00:00Z",
+      "updated_at": "2024-07-13T13:00:00Z"
+    }
+  }
+}
