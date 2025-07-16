@@ -12,15 +12,15 @@ import (
 
 const (
 	// Docker configuration
-	registryURL = "[Artifact Registry(Docker)-Image for MCP Server]"
+	registryURL = ""
 	imageName   = "flight-ticket-tools"
 	dockerFile  = "Dockerfile"
 
 	// Google Cloud configuration
-	projectID      = "[Google Cloud Project ID]"
+	projectID      = "a3rlabs-sandbox"
 	region         = "us-east1"
 	serviceName    = "flight-ticket-tools"
-	serviceAccount = "[Google Cloud IAM Service Account for flight-ticket-tools]"
+	serviceAccount = "<SERVICE_ACCOUNT_EMAIL>"
 )
 
 // Docker namespace contains Docker-related build targets

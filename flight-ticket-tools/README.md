@@ -2,6 +2,12 @@
 
 A Model Context Protocol (MCP) server that provides tools for managing flight tickets through a REST API service.
 
+## Architecture
+
+This MCP server uses a **direct approach** that automatically detects its environment:
+- **Local mode**: Uses stdio transport for MCP communication with local clients
+- **Cloud Run mode**: Uses FastMCP's built-in streamable HTTP transport for remote access
+
 ## Deployment
 
 This application can be deployed to Google Cloud Run or run locally using different MCP transport modes.
@@ -79,14 +85,43 @@ mage cloudrun:delete
 
 ### Configuration
 
-The application automatically detects its environment:
+The application automatically detects its environment and uses the appropriate MCP transport:
 
-- **Local mode** (`ENVIRONMENT=local`): Uses stdio transport for MCP communication
-- **Cloud Run mode** (`ENVIRONMENT=cloudrun`): Uses HTTP transport with health checks
+- **Local mode** (`ENVIRONMENT=local`): Uses stdio transport for direct MCP communication with local clients
+- **Cloud Run mode** (`ENVIRONMENT=cloudrun`): Uses FastMCP's streamable HTTP transport for remote access
 
 Environment variables:
-- `ENVIRONMENT`: Set to "cloudrun" for Cloud Run deployment, "local" for local development
-- `PORT`: Port number for HTTP server (default: 8080)
+- `ENVIRONMENT`: Set to "cloudrun" for Cloud Run deployment, "local" for local development (default: "local")
+- `PORT`: Port number for HTTP server in Cloud Run mode (default: 8080)
+
+### MCP Client Configuration
+
+For **local development**, configure your MCP client to use stdio transport:
+```json
+{
+  "mcpServers": {
+    "flight-ticket-tools": {
+      "command": "python",
+      "args": ["/path/to/flight-ticket-tools/main.py"],
+      "env": {
+        "ENVIRONMENT": "local"
+      }
+    }
+  }
+}
+```
+
+For **remote access** to Cloud Run deployment, configure your MCP client to use HTTP transport:
+```json
+{
+  "mcpServers": {
+    "flight-ticket-tools": {
+      "url": "https://flight-ticket-tools-858333166396.us-east1.run.app/mcp",
+      "transport": "http"
+    }
+  }
+}
+```
 
 ### Service Account
 

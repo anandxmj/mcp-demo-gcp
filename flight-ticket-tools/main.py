@@ -1,15 +1,14 @@
-from mcp.server.fastmcp import FastMCP
-from mcp.server.session import ServerSession
-from mcp.server.stdio import stdio_server
-from mcp.types import ServerCapabilities, Tool
-from os import getenv
+import asyncio
+import os
 import sys
 import signal
 import httpx
 import json
-import asyncio
-from typing import Optional, Dict, Any, List
+import uuid
+from typing import Optional, Dict, Any
 from datetime import datetime
+
+from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
@@ -18,24 +17,17 @@ from starlette.requests import Request
 import uvicorn
 
 # Configuration
-PORT = int(getenv("PORT", "8080"))
-ENVIRONMENT = getenv("ENVIRONMENT", "local")  # "local" or "cloudrun"
+PORT = int(os.getenv("PORT", "8080"))
+ENVIRONMENT = os.getenv("ENVIRONMENT", "local")  # "local" or "cloudrun"
 
 # Base URL for the Flight Ticket Service API
-BASE_URL = "[HTTPS URL for flight-ticket-service]"
+BASE_URL = "https://flight-ticket-service-858333166396.us-east1.run.app"
 
 # Initialize MCP server
 mcp = FastMCP("FlightTicketTools")
 
-# Health endpoint function for Cloud Run (not using MCP decorator)
-async def health_endpoint():
-    """Health check endpoint for Cloud Run."""
-    return {
-        "status": "healthy",
-        "service": "flight-ticket-tools",
-        "timestamp": datetime.utcnow().isoformat(),
-        "environment": ENVIRONMENT
-    }
+# Session storage for streamable HTTP
+sessions = {}
 
 @mcp.tool()
 def health_check() -> Dict[str, Any]:
@@ -244,11 +236,16 @@ def list_flight_tickets(limit: Optional[int] = 50) -> Dict[str, Any]:
         except:
             return {"error": f"HTTP {e.response.status_code}: {e.response.text}"}
 
-# Streamable HTTP Transport Implementation
-async def handle_mcp_message(request: Request):
-    """Handle MCP messages over streamable HTTP transport."""
+async def handle_streamable_http(request: Request):
+    """Handle streamable HTTP requests with proper session management."""
     try:
-        # Read the request body
+        # Get or create session ID
+        session_id = request.headers.get("x-session-id")
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            sessions[session_id] = {"created_at": datetime.now()}
+        
+        # Parse the request body
         body = await request.body()
         if not body:
             return Response(
@@ -260,7 +257,6 @@ async def handle_mcp_message(request: Request):
                 status_code=400
             )
         
-        # Parse JSON-RPC message
         try:
             message = json.loads(body.decode())
         except json.JSONDecodeError:
@@ -273,11 +269,14 @@ async def handle_mcp_message(request: Request):
                 status_code=400
             )
         
-        # Handle MCP protocol messages manually since FastMCP doesn't expose server directly
-        if message.get("method") == "initialize":
+        # Handle different MCP methods
+        method = message.get("method")
+        msg_id = message.get("id")
+        
+        if method == "initialize":
             response = {
                 "jsonrpc": "2.0",
-                "id": message.get("id"),
+                "id": msg_id,
                 "result": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {
@@ -288,101 +287,31 @@ async def handle_mcp_message(request: Request):
                     },
                     "serverInfo": {
                         "name": "FlightTicketTools",
-                        "version": "1.0.0"
+                        "version": "1.11.0"
                     }
                 }
             }
-        elif message.get("method") == "tools/list":
-            # List available tools
-            tools = [
-                {
-                    "name": "health_check",
-                    "description": "Check the health status of the Flight Ticket Service",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                },
-                {
-                    "name": "create_flight_ticket",
-                    "description": "Create a new flight ticket with the provided details",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "origin": {"type": "string", "description": "Origin airport code (e.g., 'JFK')"},
-                            "destination": {"type": "string", "description": "Destination airport code (e.g., 'LAX')"},
-                            "departure_date": {"type": "string", "description": "Departure date in YYYY-MM-DD format"},
-                            "departure_time": {"type": "string", "description": "Departure time in HH:MM format"},
-                            "passengers": {"type": "integer", "description": "Number of passengers (minimum 1)"},
-                            "flight_number": {"type": "string", "description": "Flight number (optional)"}
-                        },
-                        "required": ["origin", "destination", "departure_date", "departure_time", "passengers"]
-                    }
-                },
-                {
-                    "name": "get_flight_ticket",
-                    "description": "Retrieve a flight ticket using its confirmation ID",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "confirmation_id": {"type": "string", "description": "Ticket confirmation ID"}
-                        },
-                        "required": ["confirmation_id"]
-                    }
-                },
-                {
-                    "name": "update_flight_ticket",
-                    "description": "Update an existing flight ticket with new information",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "confirmation_id": {"type": "string", "description": "Ticket confirmation ID"},
-                            "origin": {"type": "string", "description": "New origin airport code (optional)"},
-                            "destination": {"type": "string", "description": "New destination airport code (optional)"},
-                            "departure_date": {"type": "string", "description": "New departure date (optional)"},
-                            "departure_time": {"type": "string", "description": "New departure time (optional)"},
-                            "passengers": {"type": "integer", "description": "New number of passengers (optional)"},
-                            "flight_number": {"type": "string", "description": "New flight number (optional)"},
-                            "status": {"type": "string", "description": "New status (optional)"}
-                        },
-                        "required": ["confirmation_id"]
-                    }
-                },
-                {
-                    "name": "cancel_flight_ticket",
-                    "description": "Cancel a flight ticket by setting its status to CANCELLED",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "confirmation_id": {"type": "string", "description": "Ticket confirmation ID"}
-                        },
-                        "required": ["confirmation_id"]
-                    }
-                },
-                {
-                    "name": "list_flight_tickets",
-                    "description": "Retrieve a list of all flight tickets with optional pagination",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "limit": {"type": "integer", "description": "Maximum number of tickets to return (default: 50)"}
-                        },
-                        "required": []
-                    }
-                }
-            ]
+        elif method == "tools/list":
+            tools = await mcp.list_tools()
             response = {
                 "jsonrpc": "2.0",
-                "id": message.get("id"),
-                "result": {"tools": tools}
+                "id": msg_id,
+                "result": {
+                    "tools": [
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "inputSchema": tool.inputSchema
+                        } for tool in tools
+                    ]
+                }
             }
-        elif message.get("method") == "tools/call":
-            # Handle tool calls
+        elif method == "tools/call":
             tool_name = message.get("params", {}).get("name")
             arguments = message.get("params", {}).get("arguments", {})
             
             try:
+                # Call the tool function directly instead of using FastMCP's call_tool
                 if tool_name == "health_check":
                     result = health_check()
                 elif tool_name == "create_flight_ticket":
@@ -400,7 +329,7 @@ async def handle_mcp_message(request: Request):
                 
                 response = {
                     "jsonrpc": "2.0",
-                    "id": message.get("id"),
+                    "id": msg_id,
                     "result": {
                         "content": [
                             {
@@ -413,7 +342,7 @@ async def handle_mcp_message(request: Request):
             except Exception as e:
                 response = {
                     "jsonrpc": "2.0",
-                    "id": message.get("id"),
+                    "id": msg_id,
                     "error": {
                         "code": -32603,
                         "message": f"Tool execution error: {str(e)}"
@@ -422,34 +351,36 @@ async def handle_mcp_message(request: Request):
         else:
             response = {
                 "jsonrpc": "2.0",
-                "id": message.get("id"),
+                "id": msg_id,
                 "error": {
                     "code": -32601,
-                    "message": f"Method not found: {message.get('method')}"
+                    "message": f"Method not found: {method}"
                 }
             }
         
+        # Return response with session ID header
         return Response(
             content=json.dumps(response),
             media_type="application/json",
             headers={
+                "x-session-id": session_id,
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization"
+                "Access-Control-Allow-Headers": "Content-Type, x-session-id",
+                "Access-Control-Expose-Headers": "x-session-id"
             }
         )
         
     except Exception as e:
-        error_response = {
-            "jsonrpc": "2.0",
-            "id": message.get("id") if 'message' in locals() else None,
-            "error": {
-                "code": -32603,
-                "message": f"Internal error: {str(e)}"
-            }
-        }
         return Response(
-            content=json.dumps(error_response),
+            content=json.dumps({
+                "jsonrpc": "2.0",
+                "id": message.get("id") if 'message' in locals() else None,
+                "error": {
+                    "code": -32603,
+                    "message": f"Internal error: {str(e)}"
+                }
+            }),
             media_type="application/json",
             status_code=500
         )
@@ -461,14 +392,11 @@ async def handle_options(request: Request):
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers": "Content-Type, x-session-id",
+            "Access-Control-Expose-Headers": "x-session-id",
             "Access-Control-Max-Age": "86400"
         }
     )
-
-async def handle_health_check(request: Request):
-    """Handle health check requests."""
-    return JSONResponse(await health_endpoint())
 
 async def main():
     """Main entry point that handles both local and Cloud Run environments."""
@@ -482,14 +410,19 @@ async def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     if ENVIRONMENT == "cloudrun":
-        # Cloud Run mode: HTTP server with streamable MCP transport
-        print(f"Starting remote MCP server with streamable-http transport on port {PORT}")
+        # Cloud Run mode: Use custom streamable HTTP handler with session management
+        print(f"Starting MCP server in Cloud Run mode on port {PORT}")
         
-        # Create Starlette app with MCP endpoints
+        # Create custom Starlette app with proper session management
         app = Starlette(routes=[
-            Route('/health', handle_health_check, methods=['GET']),
-            Route('/message', handle_mcp_message, methods=['POST']),
-            Route('/message', handle_options, methods=['OPTIONS']),
+            Route('/health', lambda request: JSONResponse({
+                "status": "healthy",
+                "service": "flight-ticket-tools",
+                "timestamp": datetime.now().isoformat(),
+                "environment": ENVIRONMENT
+            }), methods=['GET']),
+            Route('/mcp', handle_streamable_http, methods=['POST']),
+            Route('/mcp', handle_options, methods=['OPTIONS']),
         ])
         
         # Add CORS middleware
@@ -508,7 +441,7 @@ async def main():
         
     else:
         # Local mode: use stdio transport
-        print("Starting MCP server in stdio mode")
+        print("Starting MCP server in local stdio mode")
         try:
             # Handle broken pipe gracefully for stdio mode
             signal.signal(signal.SIGPIPE, signal.SIG_DFL)
